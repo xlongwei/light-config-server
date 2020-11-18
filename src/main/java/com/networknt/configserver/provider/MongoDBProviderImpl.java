@@ -1,11 +1,9 @@
 package com.networknt.configserver.provider;
 
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
 import com.networknt.config.Config;
 import com.networknt.configserver.constants.ConfigServerConstants;
+import com.networknt.configserver.db.MongoStartupHookProvider;
 import com.networknt.configserver.model.Service;
 import com.networknt.configserver.model.ServiceConfigs;
 import com.networknt.exception.ApiException;
@@ -18,18 +16,7 @@ import java.util.Map;
 
 public class MongoDBProviderImpl implements IProvider {
   private static final String CONFIGS_FILE_NAME = "values";
-  private static final String MONGO_DB_URI = "mongoDBUri";
-  private static final String MONGO_DB_NAME = "mongoDBName";
-  private static final String MONGO_COLLECTION_NAME = "configs";
-
-  //init mongodb connection
-  Map<String, Object> configServerConfig = Config.getInstance().getJsonMapConfig(ConfigServerConstants.CONFIG_NAME);
-  String url = (String) configServerConfig.get(MONGO_DB_URI);
-  String dbName = (String) configServerConfig.get(MONGO_DB_NAME);
-  String collectionName = (String) configServerConfig.get(MONGO_COLLECTION_NAME);
-  MongoClient mongoClient = MongoClients.create(System.getProperty(url));
-  MongoDatabase database = mongoClient.getDatabase(dbName);
-  MongoCollection<Document> collection = database.getCollection(collectionName);
+  private static final String MONGO_COLLECTION_NAME = "mongoDBCollection";
 
   @Override
   public String login(String authorization) throws ApiException {
@@ -122,15 +109,18 @@ public class MongoDBProviderImpl implements IProvider {
 
   private String buildConfigKey(Service service, String configType, String name, String version) {
     StringBuffer configPath = new StringBuffer();
-    configPath.append(ConfigServerConstants.DASH).append(configType)
-            .append(ConfigServerConstants.DASH).append(service.getProjectName())
-            .append(ConfigServerConstants.DASH).append(name)
-            .append(ConfigServerConstants.DASH).append(version)
-            .append(ConfigServerConstants.DASH).append(service.getEnvironment());
+    configPath.append(configType)
+            .append(ConfigServerConstants.SLASH).append(service.getProjectName())
+            .append(ConfigServerConstants.SLASH).append(name)
+            .append(ConfigServerConstants.SLASH).append(version)
+            .append(ConfigServerConstants.SLASH).append(service.getEnvironment());
     return configPath.toString();
   }
 
   private Map<String, Object> getConfigs(String configKey) {
+    Map<String, Object> configServerConfig = Config.getInstance().getJsonMapConfig(ConfigServerConstants.CONFIG_NAME);
+    String collectionName = (String) configServerConfig.get(MONGO_COLLECTION_NAME);
+    MongoCollection<Document> collection = MongoStartupHookProvider.db.getCollection(collectionName);
     Map<String, Object> configsMap = new HashMap<>();
 
     Document document = new Document("_id", configKey);
@@ -150,7 +140,7 @@ public class MongoDBProviderImpl implements IProvider {
       });
 
     } catch (Exception e) {
-      logger.error("cannot get entry from mongo db with key: {}", configKey);
+      logger.error("cannot get entry from mongo db with key: {} with error {}", configKey, e);
       return configsMap;
     }
     return configsMap;

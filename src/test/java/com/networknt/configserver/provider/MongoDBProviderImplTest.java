@@ -15,7 +15,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class  MongoDBProviderImplTest {
-  String configKey = "files/eaap/0.0.1/eaap-service/0.0.1/dev";
+  String configKey = "files/eaap/globals/0.0.1/dev";
   MongoClient mongoClient = MongoClients.create("mongodb://root:example@0.0.0.0:27017");
   MongoDatabase database = mongoClient.getDatabase("configServer");
   MongoCollection<Document> collection = database.getCollection("configs");
